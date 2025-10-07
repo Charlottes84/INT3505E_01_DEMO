@@ -1,8 +1,8 @@
 #Server(Flask)
-from flask import Flask, request, url_for
+from flask import Flask, request, url_for, make_response, jsonify
 from flask_restful import Resource, Api
 from datetime import datetime 
-import uuid 
+import uuid, hashlib, json
 
 app = Flask(__name__)
 api = Api(app)
@@ -19,6 +19,13 @@ def find_book_by_id(book_id):
         if book['id'] == book_id:
             return book
     return None 
+
+# --- Create ETag ---
+def generate_etag(book_data):
+    book_json = json.dumps(book_data, sort_keys=True)
+    book_bytes = book_json.encode('utf-8')
+    return hashlib.md5(book_bytes).hexdigest()
+
 
 # --- Create HATEOS links ---
 def add_book_links(book_dict):
@@ -50,7 +57,6 @@ def add_book_links(book_dict):
         })
 
     return links
-    
 
 #--- API Endpoints ---
 class BookList(Resource): 
@@ -109,9 +115,15 @@ class BookResource(Resource):
         if not book:
             return {'message': 'Book not found'}, 404
         
+        current_etag = generate_etag(book)
+        if 'If-None-Match' in request.headers:
+            if_none_match = request.headers['If-None-Match'].strip('"') 
+            if if_none_match == current_etag:
+                return '', 304, {'ETag': f'"{current_etag}"'} 
+
         response_book = book.copy()
         response_book['links'] = add_book_links(response_book)
-        return response_book, 200
+        return response_book, 200, {'ETag': f'"{current_etag}"'} 
 
     
     def post(self, book_id):
@@ -142,9 +154,12 @@ class BookResource(Resource):
                 if any(b['isbn'] == data['isbn'] for b in books_data if b['id'] != book_id):
                     return {'message': 'Another book with this ISBN already exists'}, 409
                 book['isbn'] = data['isbn']
+            
+            updated_etag = generate_etag(book)
+
             response_book = book.copy()
             response_book['links'] = add_book_links(response_book)
-            return response_book, 200
+            return response_book, 200, {'ETag': f'"{updated_etag}"'}
         return {'message': 'No data provided for update'}, 400
 
 
@@ -169,5 +184,4 @@ api.add_resource(BookReturn, '/books/<string:book_id>/return', endpoint='bookret
 if __name__ == '__main__': 
     app.run(debug=True)
     
-
 
