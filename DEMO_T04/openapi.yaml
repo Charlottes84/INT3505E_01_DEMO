@@ -1,0 +1,268 @@
+# openapi.yaml
+openapi: "3.0.0"
+info:
+  title: Book Management API
+  description: API để quản lý bộ sưu tập sách.
+  version: 1.0.0
+  contact:
+    name: Nguyen Duc Hung
+    email: hungnguyenduc023@gmail.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: ""
+  - url: https://management-book-api.com/api/v1
+    description: ""
+
+tags:
+  - name: Books
+    description: Các hoạt động liên quan đến sách
+
+paths:
+  /books:
+    get:
+      summary: Lấy danh sách tất cả sách
+      operationId: getAllBooks
+      tags:
+        - Books
+      parameters:
+        - name: author
+          in: query
+          description: Lọc sách theo tên tác giả
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Số lượng sách tối đa được trả về
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          description: Danh sách sách được trả về thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Thêm một cuốn sách mới
+      operationId: addBook
+      tags:
+        - Books
+      requestBody:
+        description: Đối tượng sách cần thêm vào bộ sưu tập
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookRequest'
+      responses:
+        '201':
+          description: Sách được thêm thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /books/{bookId}:
+    get:
+      summary: Lấy thông tin chi tiết của một cuốn sách
+      operationId: getBookById
+      tags:
+        - Books
+      parameters:
+        - name: bookId
+          in: path
+          description: ID của cuốn sách cần lấy
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Thông tin sách được trả về thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '404':
+          description: Không tìm thấy sách với ID đã cho
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Cập nhật thông tin của một cuốn sách
+      operationId: updateBook
+      tags:
+        - Books
+      parameters:
+        - name: bookId
+          in: path
+          description: ID của cuốn sách cần cập nhật
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Đối tượng sách với thông tin cập nhật
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookRequest'
+      responses:
+        '200':
+          description: Sách được cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Không tìm thấy sách với ID đã cho
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Xóa một cuốn sách
+      operationId: deleteBook
+      tags:
+        - Books
+      parameters:
+        - name: bookId
+          in: path
+          description: ID của cuốn sách cần xóa
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Sách được xóa thành công
+        '404':
+          description: Không tìm thấy sách với ID đã cho
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Lỗi máy chủ nội bộ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Book:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID duy nhất của sách
+          readOnly: true
+          example: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+        title:
+          type: string
+          description: Tiêu đề của sách
+          example: "The Hitchhiker's Guide to the Galaxy"
+        author:
+          type: string
+          description: Tên tác giả của sách
+          example: "Douglas Adams"
+        isbn:
+          type: string
+          description: Mã ISBN của sách
+          example: "978-0345391803"
+        publicationYear:
+          type: integer
+          format: int32
+          description: Năm xuất bản
+          example: 1979
+      required:
+        - id
+        - title
+        - author
+        - isbn
+    BookRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Tiêu đề của sách
+          example: "Clean Code"
+        author:
+          type: string
+          description: Tên tác giả của sách
+          example: "Robert C. Martin"
+        isbn:
+          type: string
+          description: Mã ISBN của sách
+          example: "978-0132350884"
+        publicationYear:
+          type: integer
+          format: int32
+          description: Năm xuất bản
+          example: 2008
+      required:
+        - title
+        - author
+        - isbn
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Mã lỗi HTTP
+          example: 400
+        message:
+          type: string
+          description: Mô tả chi tiết lỗi
+          example: "Invalid input data provided."
