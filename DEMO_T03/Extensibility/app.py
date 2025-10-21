@@ -9,5 +9,6 @@ api = Api(app)
 api.add_resource(BookListV1, "/api/v1/books")
 api.add_resource(BookListV2, "/api/v2/books")
 
+
 if __name__ == "__main__":
     app.run(debug=True)
