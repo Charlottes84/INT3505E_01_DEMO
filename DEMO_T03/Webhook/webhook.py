@@ -1,72 +1,55 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from flask_restful import Resource, Api
-import requests
+import datetime
 
 app = Flask(__name__)
 api = Api(app)
 
-books = {
-    123: {"title": "Dế Mèn phiêu lưu ký", "quantity": 10},
-    124: {"title": "Tắt đèn", "quantity": 5}
-}
+event_log = [] # demo = thay cho database
 
-WEBHOOK_URL = "http://127.0.0.1:5000/webhook/book-update"
+# App A = Postman
+# App B = My laptop 
+# webhook.py = xu ly webhook
+# terminal = thong bao se nhan duoc 
 
-# Webhook endpoint 
-class BookWebhook(Resource):
-    def post(self): 
+class BookEventWebhook(Resource):
+    def post(self):
         data = request.get_json()
-        book_id = data.get("id")
-        title = data.get("title")
-        quantity_left = data.get("quantity_left")
 
-        books[book_id] = {"title": title, "quantity": quantity_left}
-        print(f'Webhook received: {data}')
-        return {"status:" "success"},200
-    
-# List book
-class BookList(Resource):
-    def get(self):
-        return books, 200
-    
-# Borrow book
-class BorrowBook(Resource):
-    def post(self, book_id):
-        if book_id in books and books[book_id]["quantity"] > 0:
-            books[book_id]["quantity"] -=1
+        if not data or 'event_type' not in data or 'payload' not in data:
+            return {'message': 'Bad Request: Missing event_type or payload'}, 400
         
-            # Send Webhook
-            payload = {
-                "book_id": book_id,
-                "title": books[book_id]["title"],
-                "quantity_left": books[book_id]["quantity"],
-                "action": "borrowed"
-            }
-            requests.post(WEBHOOK_URL, json=payload)
+        event_type = data.get('event_type')
+        payload = data.get('payload')
 
-            return books, 200
-        return {"message": "Book not available"}, 400
+        log_entry = {
+            "received_at": datetime.datetime.now().isoformat(),
+            "event": event_type,
+            "data": payload
+        }
+        event_log.append(log_entry)
 
-class ReturnBook(Resource):
-    def post(self, book_id):
-        if book_id in books:
-            books[book_id]["quantity"] += 1
+        # Check webhook received --> in terminal 
+        print("--- WEBHOOK RECEIVED ---")
+        print(f"Event: {event_type}")
+        print(f"User ID: {payload.get('user_id')}")
+        print(f"Book ID: {payload.get('book_id')}")
+        print("--------------------------------")
 
-            payload = {
-                "book_id": book_id,
-                "title": books[book_id]["title"],
-                "quantity_left": books[book_id]["quantity"],
-                "action": "returned"
-            }
-            requests.post(WEBHOOK_URL, json=payload)
+        # logic 
+        if event_type == 'book_borrowed': 
+            # them logic : cap nhat CSDL 
+            # thong bao la da muon duoc sach
+            print(f"Processing BORROW event for book {payload.get('book_id')}")
+        elif event_type == 'book_returned':
+            print(f"Processing RETURN event for book {payload.get('book_id')}")
+        elif event_type == 'book_lost':
+            print(f"Processing LOST event for book {payload.get('book_id')}")
+        else:
+            print(f"Warning: Received unknown event_type '{event_type}'")
+        return {'status': 'success', 'message': f'Event {event_type} received'}, 200
 
-            return books, 200
-        return {"message": "Book not found"}, 400
+api.add_resource(BookEventWebhook, '/webhook')
 
-api.add_resource(BookWebhook, "/webhook/book-update")
-api.add_resource(BookList, "/books")
-api.add_resource(BorrowBook, "/borrow/<int:book_id>")
-api.add_resource(ReturnBook, "/return/<int:book_id>")
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+if __name__ == '__main__':
+    app.run(debug=True)
