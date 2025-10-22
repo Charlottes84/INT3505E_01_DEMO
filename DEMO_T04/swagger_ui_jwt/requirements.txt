@@ -1,0 +1,4 @@
+flask
+flask_restx
+flask-jwt-extended
+flask-sqlalchemy
