@@ -37,12 +37,79 @@ infojwt = {
 
 api = Api(
     app,
-    version='1.0'
+    version='1.0',
     title='Demo API + JWT + SQLite',
-    description='API uses Flask, JWT and store user data in SQLite'
+    description='API uses Flask, JWT and store user data in SQLite',
     authorizations=infojwt 
 )
 
+
+# auth ~ blueprint
 auth_ns = api.namespace('auth', description='Xác thực (đăng nhập/đăng ký)')
 protected_ns = api.namespace('protected', description='Tài nguyên được bảo vệ')
+
+auth_parser =reqparse.RequestParser()
+auth_parser.add_argument('username', type=str, required=True, help='Tên đăng nhập')
+auth_parser.add_argument('password', type=str, required=True, help='Mật khẩu')
+
+@auth_ns.route('/registration')
+class Registration(Resource):
+    @auth_ns.doc('registration_user')
+    @auth_ns.expect(auth_parser)
+    def post(self):
+        args = auth_parser.parse_args()
+        username = args['username']
+        password = args['password']
+
+        if User.query.filter_by(username=username).first():
+            return {
+                'message': 'Tên đăng nhập đã tồn tại'
+            }, 400
+        
+        new_user = User(username=username)
+        new_user.set_password(password)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        return {
+            'message': f'Người dùng {username} đã được tạo thành công'
+        }, 201
+    
+@auth_ns.route('/login')
+class Login(Resource):
+    @auth_ns.doc('login_user')
+    @auth_ns.expect(auth_parser)
+    def post(self):
+        args = auth_parser.parse_args()
+        username = args['username']
+        password = args['password']
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.check_password(password):
+            access_token = create_access_token(identity=username)
+            return jsonify(access_token=access_token)
+        
+        return {
+            'message': 'Sai tên đăng nhập hoặc mật khẩu'
+        }, 401
+    
+@protected_ns.route('/data')
+class ProtectedData(Resource):
+
+    @jwt_required()
+    @api.doc(security='jwt')
+
+    def get(self):
+        current_user = get_jwt_identity()
+        return {
+            'message': f'{current_user} đã truy cập thành công vào tài nguyên!'
+        }
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)
+
 
